@@ -128,3 +128,35 @@ ol.steps .where{display:block;font-size:11px;color:var(--muted);letter-spacing:.
 .spectext{flex:1;padding:12px 14px;overflow:hidden;line-height:1}
 table.spec td.num{font-family:var(--mono);text-align:right}
 table.spec td.num .u{color:var(--muted);font-size:11px}
+
+/* ---- layout guide (learn view) ---- */
+.lessonnav{display:flex;flex-direction:column;gap:4px}
+.lessonnav button{display:flex;gap:10px;align-items:baseline;text-align:left;font-family:var(--sans);
+  font-size:13px;padding:8px 10px;border:1px solid transparent;background:transparent;color:var(--ink);
+  cursor:pointer;border-radius:2px;transition:.12s}
+.lessonnav button:hover{border-color:var(--line-2)}
+.lessonnav button.on{background:var(--ink);color:var(--paper)}
+.lessonnav button .n{font-family:var(--mono);font-size:11px;color:var(--accent);flex-shrink:0}
+.lessonnav button.on .n{color:var(--paper);opacity:.65}
+.learnnote{font-size:12px;color:var(--muted);line-height:1.6;margin:0}
+.learnnote b{color:var(--ink);font-weight:600}
+.lesson-kicker{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.lessonpane h2{font-size:19px;font-weight:600;letter-spacing:-.01em;margin:6px 0 10px}
+.lessonbody{font-size:13.5px;line-height:1.65}
+.lessonbody p{margin:0 0 10px}
+.lessonbody p:last-child{margin-bottom:0}
+.lessonbody .v{font-family:var(--mono);background:var(--accent-soft);color:var(--accent);
+  padding:1px 5px;border-radius:2px;font-size:12px;white-space:nowrap}
+.keylist{margin:8px 0 0;padding:0;list-style:none;counter-reset:k}
+.keylist li{position:relative;padding:0 0 9px 30px;counter-increment:k;font-size:13px;line-height:1.5}
+.keylist li:last-child{padding-bottom:0}
+.keylist li:before{content:counter(k);position:absolute;left:0;top:1px;width:18px;height:18px;border-radius:50%;
+  background:var(--accent);color:#fff;font-size:11px;font-weight:600;
+  display:flex;align-items:center;justify-content:center;font-family:var(--mono)}
+.lessonactrow{justify-content:space-between}
+.lessonactrow .btn{width:auto;padding:9px 18px}
+.lessonactrow .btn:disabled{opacity:.35;cursor:default}
+#learnhost svg .cell{cursor:pointer;fill:transparent}
+#learnhost svg .cell:hover{fill:rgba(214,57,43,.12)}
+#learnhost svg .blockhit{cursor:pointer;fill:transparent}
+#learnhost svg .blockhit:hover{fill:rgba(214,57,43,.10)}

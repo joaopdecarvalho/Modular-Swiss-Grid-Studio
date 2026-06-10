@@ -564,8 +564,9 @@ document.querySelectorAll('#topnav button').forEach(b=>b.addEventListener('click
   document.querySelectorAll('#topnav button').forEach(x=>x.classList.toggle('on',x===b));
   document.getElementById('view-grid').hidden = v!=='grid';
   document.getElementById('view-type').hidden = v!=='type';
+  document.getElementById('view-learn').hidden = v!=='learn';
   document.getElementById('modeswitch').style.visibility = v==='grid'?'visible':'hidden';
-  if(v==='grid') render(); else renderType();
+  if(v==='grid') render(); else if(v==='type') renderType(); else renderLearn();
 }));
 
 /* ---- type input sync ---- */
@@ -761,6 +762,7 @@ restore();
 let __rz; window.addEventListener('resize',()=>{clearTimeout(__rz); __rz=setTimeout(()=>{
   if(!document.getElementById('view-grid').hidden) render();
   if(!document.getElementById('view-type').hidden) renderType();
+  if(!document.getElementById('view-learn').hidden) renderLearn();
 },120);});
 
 // Give every plain number field a − / + stepper (replaces the native spin arrows).
@@ -793,4 +795,371 @@ let __rz; window.addEventListener('resize',()=>{clearTimeout(__rz); __rz=setTime
     minus.addEventListener('click',()=>bump(input,-1));
     plus .addEventListener('click',()=>bump(input, 1));
   });
+})();
+
+/* ============================================================
+   Layout guide — lessons drawn on the user's own grid,
+   after Müller-Brockmann, "Grid Systems in Graphic Design"
+   ============================================================ */
+const LEARN_INK = '#19180f', LEARN_ACC = '#d6392b';
+const learn = { idx:0, blocks:[], anchor:null, layout:null, shape:null };
+
+function learnGrid(){
+  let G = computeGrid(state);
+  if(G.N<=0 || G.colWpt<=0){
+    const { _t, ...fb } = PRESETS.flyer;
+    G = computeGrid({ ...state, ...fb });
+    G.__fallback = true;
+  }
+  return G;
+}
+function fieldRect(G,c,r,cs=1,rs=1){
+  return { x: G.leftPt + c*(G.colWpt+G.colGutterPt),
+           y: G.topPt + r*(G.moduleHpt+G.gutterPt),
+           w: cs*G.colWpt + (cs-1)*G.colGutterPt,
+           h: rs*G.moduleHpt + (rs-1)*G.gutterPt };
+}
+function rectsIntersect(a,b){ return a.c<b.c+b.cs && b.c<a.c+a.cs && a.r<b.r+b.rs && b.r<a.r+a.rs; }
+function mulberry(seed){ let a=seed>>>0; return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+
+/* mock content, drawn in page pt coordinates */
+function mockImage(g,R){
+  g.appendChild(svgEl('rect',{x:R.x,y:R.y,width:R.w,height:R.h,fill:'rgba(25,24,15,.15)',stroke:LEARN_INK,'stroke-width':0.9,'vector-effect':'non-scaling-stroke'}));
+  g.appendChild(svgEl('line',{x1:R.x,y1:R.y,x2:R.x+R.w,y2:R.y+R.h,stroke:LEARN_INK,'stroke-width':0.6,opacity:.45,'vector-effect':'non-scaling-stroke'}));
+  g.appendChild(svgEl('line',{x1:R.x+R.w,y1:R.y,x2:R.x,y2:R.y+R.h,stroke:LEARN_INK,'stroke-width':0.6,opacity:.45,'vector-effect':'non-scaling-stroke'}));
+}
+function mockText(g,G,R,seed){
+  const rnd = mulberry(seed||7);
+  const n = Math.max(1, Math.round(R.h/G.b));
+  for(let k=1;k<=n;k++){
+    const last = k===n || k%7===0;
+    const w = R.w*(last ? .4+.25*rnd() : .88+.12*rnd());
+    g.appendChild(svgEl('rect',{x:R.x,y:R.y+k*G.b-G.b*.42,width:w,height:G.b*.42,fill:'rgba(25,24,15,.32)'}));
+  }
+}
+function mockHead(g,G,R,bars){
+  const maxBars = Math.max(1, Math.floor(R.h/(2*G.b)));
+  const nb = Math.min(bars||2, maxBars);
+  for(let i=1;i<=nb;i++){
+    const w = R.w*(i===nb?.62:.9);
+    g.appendChild(svgEl('rect',{x:R.x,y:R.y+i*2*G.b-G.b*1.05,width:w,height:G.b*1.05,fill:LEARN_INK}));
+  }
+  return nb*2; // baselines consumed
+}
+function mockCaption(g,G,x,y,w,lines){
+  const n = Math.max(1, lines||1);
+  for(let k=1;k<=n;k++){
+    g.appendChild(svgEl('rect',{x,y:y+k*G.b-G.b*.3,width:w*(k===n?.62:.96),height:G.b*.3,fill:'rgba(25,24,15,.46)'}));
+  }
+}
+function lessonMarker(g,x,y,n,fs){
+  g.appendChild(svgEl('circle',{cx:x,cy:y,r:fs*.72,fill:LEARN_ACC}));
+  const t = svgEl('text',{x,y:y+fs*.34,'text-anchor':'middle','font-size':fs,fill:'#fff','font-family':"'Archivo',sans-serif",'font-weight':'600'});
+  t.textContent = String(n);
+  g.appendChild(t);
+}
+function accentDash(g,G,y){
+  g.appendChild(svgEl('line',{x1:G.leftPt,y1:y,x2:G.leftPt+G.liveWpt,y2:y,stroke:LEARN_ACC,'stroke-width':1.3,'stroke-dasharray':'5 4','vector-effect':'non-scaling-stroke'}));
+}
+
+/* lesson 1 anatomy callouts — markers and key list share one source */
+function anatomyItems(G){
+  const items = [];
+  items.push({ t:'Margins', p:{x:G.p.wpt/2, y:Math.max(7,G.topPt/2)},
+    d:'the white frame around the type area. The book treats margins as deliberate proportions — often a heavier foot — never as leftover space.' });
+  items.push({ t:'Type area', p:{x:G.leftPt+G.liveWpt, y:G.topPt},
+    d:`the live rectangle all content stays inside — ${r1(G.liveWpt/PT)} × ${r1(G.liveHpt/PT)} mm, exactly ${G.N} baselines tall.` });
+  items.push({ t:'Field (module)', p:{x:G.leftPt+G.colWpt/2, y:G.topPt+G.moduleHpt/2},
+    d:'the unit of placement. Everything you position — text, pictures, captions — occupies one or more whole fields.' });
+  if(G.rows>1) items.push({ t:'Row gutter', p:{x:G.leftPt+G.liveWpt/2, y:G.topPt+G.moduleHpt+G.gutterPt/2},
+    d: G.g>0 ? `${G.g} blank text line${G.g===1?'':'s'} between fields — sized in whole lines so a caption can sit inside it (lesson 4).`
+             : 'currently 0 lines, so the fields touch. The book sets one or more whole lines here so a caption can sit between fields (lesson 4).' });
+  if(G.cols>1) items.push({ t:'Column gutter', p:{x:G.leftPt+G.colWpt+G.colGutterPt/2, y:G.topPt+G.liveHpt*.62},
+    d:'the horizontal gap between columns — sized so neighbouring text and pictures never touch.' });
+  const kb = Math.max(1, Math.min(G.N-1, Math.round(G.N*.8)));
+  items.push({ t:'Baseline grid', p:{x:G.leftPt+G.liveWpt*.82, y:G.topPt+kb*G.b}, line:true,
+    d:`the ${fmt(G.b)} pt rhythm every line of text sits on — the master unit the whole page is counted in.` });
+  return items;
+}
+
+/* interactive picture placement (lesson 3) */
+function seedBlocks(G){
+  const out = [];
+  const tryAdd = b => { if(b.c>=0 && b.r>=0 && b.c+b.cs<=G.cols && b.r+b.rs<=G.rows && !out.some(o=>rectsIntersect(o,b))) out.push(b); };
+  tryAdd({ c:Math.max(0,G.cols-2), r:0, cs:Math.min(2,G.cols), rs:Math.min(2,G.rows) });
+  tryAdd({ c:0, r:G.rows-1, cs:1, rs:1 });
+  return out;
+}
+function learnCellClick(c,r){
+  if(!learn.anchor){ learn.anchor={c,r}; renderLearn(); return; }
+  const a = learn.anchor; learn.anchor = null;
+  const nb = { c:Math.min(a.c,c), r:Math.min(a.r,r), cs:Math.abs(a.c-c)+1, rs:Math.abs(a.r-r)+1 };
+  learn.blocks = learn.blocks.filter(b=>!rectsIntersect(b,nb));
+  learn.blocks.push(nb);
+  renderLearn();
+}
+
+/* layout generator (lesson 7) — every layout obeys the lessons' rules */
+function genLayout(G){
+  const C=G.cols, R=G.rows;
+  const occ = Array.from({length:R},()=>Array(C).fill(false));
+  const free = (c,r,cs,rs)=>{ if(c<0||r<0||c+cs>C||r+rs>R) return false;
+    for(let i=r;i<r+rs;i++) for(let j=c;j<c+cs;j++) if(occ[i][j]) return false; return true; };
+  const take = (c,r,cs,rs)=>{ for(let i=r;i<r+rs;i++) for(let j=c;j<c+cs;j++) occ[i][j]=true; };
+  const rnd = n => Math.floor(Math.random()*n);
+  const out = { cols:C, rows:R, heads:[], imgs:[], texts:[], caps:[] };
+  // headline zone: whole columns in the top row
+  const hc = Math.min(C, 1+rnd(Math.min(3,C)));
+  const hx = rnd(C-hc+1);
+  out.heads.push({ c:hx, r:0, cs:hc, rs:1, bars:1+rnd(2) });
+  take(hx,0,hc,1);
+  // one strong picture on whole fields
+  for(let t=0;t<24;t++){
+    const cs = Math.min(C, 1+rnd(Math.min(3,C))), rs = Math.min(R, 1+rnd(Math.min(3,R)));
+    const c = rnd(C-cs+1), r = rnd(R-rs+1);
+    if(free(c,r,cs,rs)){
+      out.imgs.push({c,r,cs,rs}); take(c,r,cs,rs);
+      if(G.g>0 && r+rs<R) out.caps.push({img:0});
+      break;
+    }
+  }
+  // sometimes a second, small picture
+  if(Math.random()<0.5){
+    for(let t=0;t<16;t++){ const c=rnd(C), r=rnd(R); if(free(c,r,1,1)){ out.imgs.push({c,r,cs:1,rs:1}); take(c,r,1,1); break; } }
+  }
+  // text columns fill some of what's left, from field tops; some columns stay empty on purpose
+  for(let j=0;j<C;j++){
+    if(Math.random()<0.3) continue;
+    let best=null, run=0, start=0;
+    for(let i=0;i<=R;i++){
+      if(i<R && !occ[i][j]){ if(run===0) start=i; run++; }
+      else { if(run>0 && (!best||run>best.run)) best={start,run}; run=0; }
+    }
+    if(best){
+      const rs = Math.max(1, best.run - (Math.random()<0.4?1:0));
+      out.texts.push({ c:j, r:best.start, cs:1, rs });
+      take(j,best.start,1,rs);
+    }
+  }
+  if(!out.texts.length){
+    outer: for(let i=0;i<R;i++) for(let j=0;j<C;j++) if(!occ[i][j]){ out.texts.push({c:j,r:i,cs:1,rs:1}); take(j,i,1,1); break outer; }
+  }
+  return out;
+}
+
+const LESSONS = [
+  { title:'What the grid is', kick:'The idea',
+    body:G=>`
+<p>Müller-Brockmann’s starting point: the grid is an <i>ordering system</i>. Instead of deciding every element’s place by feel, you divide the page once — and from then on each text block, picture and caption takes a position the system already provides. The constraint is the point: decisions get faster, pages calmer, and a series of pages reads as one family.</p>
+<p>Your grid divides the type area into <span class="v">${G.cols} × ${G.rows} = ${G.cols*G.rows} fields</span>, each <span class="v">${r1(G.colWpt/PT)} × ${r1(G.moduleHpt/PT)} mm</span> and exactly <span class="v">${G.moduleLines} lines</span> of body text deep. The numbered points on the page:</p>
+<ol class="keylist">${anatomyItems(G).map(it=>`<li><b>${it.t}</b> — ${it.d}</li>`).join('')}</ol>`,
+    draw(G,g,ctx){
+      g.appendChild(svgEl('rect',{x:G.leftPt,y:G.topPt,width:G.liveWpt,height:G.liveHpt,fill:'none',stroke:LEARN_ACC,'stroke-width':1.4,'stroke-dasharray':'5 4','vector-effect':'non-scaling-stroke'}));
+      const R = fieldRect(G,0,0);
+      g.appendChild(svgEl('rect',{x:R.x,y:R.y,width:R.w,height:R.h,fill:'rgba(214,57,43,.14)',stroke:LEARN_ACC,'stroke-width':1.1,'vector-effect':'non-scaling-stroke'}));
+      anatomyItems(G).forEach((it,i)=>{
+        if(it.line) g.appendChild(svgEl('line',{x1:G.leftPt,y1:it.p.y,x2:G.leftPt+G.liveWpt,y2:it.p.y,stroke:LEARN_ACC,'stroke-width':1.2,'vector-effect':'non-scaling-stroke'}));
+        lessonMarker(g,it.p.x,it.p.y,i+1,ctx.fs);
+      });
+    } },
+
+  { title:'Text lives in columns', kick:'Body text',
+    body:G=>{
+      const cpl = G.colWpt>0 ? Math.round(G.colWpt/(0.5*typeState.baseSize)) : 0;
+      const verdict = cpl<40 ? 'on the short side — consider fewer columns' : cpl>78 ? 'on the long side — consider more columns or larger body text' : 'a comfortable measure';
+      return `
+<p>Body text fills <b>the width of a column</b> and starts <b>at the top edge of a field</b> — never part-way down a module. Because your leading equals the baseline (<span class="v">${fmt(G.b)} pt</span>), one field holds exactly <span class="v">${G.moduleLines} lines</span> and a full column runs <span class="v">${G.N} lines</span>. Text may flow straight past field boundaries — the divisions matter where text meets pictures.</p>
+<p>The first baseline hangs one line below the field’s top edge (the red dot); the capitals of line one reach up toward the edge. Columns don’t all have to start at the same height — the second column here starts one field lower — but every start must be a <b>field edge</b> (the dashed line). Because field depth is a whole number of lines, the columns’ baselines still pair up exactly, line for line. That alignment is what makes multi-column pages look engineered rather than stacked.</p>
+<p><b>Measure check:</b> at your <span class="v">${fmt(typeState.baseSize)} pt</span> body size this column carries about <span class="v">${cpl} characters</span> per line — ${verdict}. The book’s test is comfort: a line you can read at arm’s length, roughly seven to ten words.</p>`;
+    },
+    draw(G,g,ctx){
+      const R0 = fieldRect(G,0,0,1,G.rows);
+      mockText(g,G,R0,3);
+      g.appendChild(svgEl('circle',{cx:R0.x-Math.max(4,ctx.fs*.4),cy:R0.y+G.b,r:ctx.fs*.26,fill:LEARN_ACC}));
+      if(G.cols>1){
+        const sr = Math.min(1,G.rows-1);
+        const R1 = fieldRect(G,1,sr,1,G.rows-sr);
+        accentDash(g,G,R1.y);
+        mockText(g,G,R1,5);
+      }
+    } },
+
+  { title:'Pictures fill whole fields', kick:'Pictures',
+    body:G=>`
+<p>A picture never floats on the page: it fills <b>one or more whole fields</b>, edges flush with the field edges. From your ${G.cols}×${G.rows} grid you get a fixed menu of picture sizes — one field, two across, a ${Math.min(2,G.cols)}×${Math.min(2,G.rows)} block, a full row, a full column.</p>
+<p>That limited menu is the book’s argument: when every picture is built from the same module, every picture stands in a clear proportional relationship to every other, and the page holds together no matter how varied the content.</p>
+<p><b>Try it:</b> click one field, then a second — a picture snaps to the whole rectangle between them (overlapped pictures give way). Click a picture to remove it. Notice what you <i>can’t</i> do: make something “a little bigger”. The grid offers steps, and the steps are the system.</p>`,
+    action:{ label:'Clear pictures', fn(){ learn.blocks=[]; learn.anchor=null; renderLearn(); } },
+    draw(G,g,ctx){
+      for(let r=0;r<G.rows;r++) for(let c=0;c<G.cols;c++){
+        const R = fieldRect(G,c,r);
+        const cell = svgEl('rect',{x:R.x,y:R.y,width:R.w,height:R.h,class:'cell'});
+        cell.addEventListener('click',()=>learnCellClick(c,r));
+        g.appendChild(cell);
+      }
+      if(learn.anchor){
+        const R = fieldRect(G,learn.anchor.c,learn.anchor.r);
+        g.appendChild(svgEl('rect',{x:R.x,y:R.y,width:R.w,height:R.h,fill:'rgba(214,57,43,.18)',stroke:LEARN_ACC,'stroke-width':1.4,'vector-effect':'non-scaling-stroke'}));
+      }
+      learn.blocks.forEach((b,i)=>{
+        const R = fieldRect(G,b.c,b.r,b.cs,b.rs);
+        mockImage(g,R);
+        const hit = svgEl('rect',{x:R.x,y:R.y,width:R.w,height:R.h,class:'blockhit'});
+        hit.addEventListener('click',()=>{ learn.blocks.splice(i,1); learn.anchor=null; renderLearn(); });
+        g.appendChild(hit);
+      });
+    } },
+
+  { title:'Captions sit in the gutter', kick:'Captions',
+    body:G=>{
+      const cs = Math.min(2,G.cols);
+      const second = G.cols>cs && G.rows>1;
+      const gut = G.g>0
+        ? `Your row gutter is <span class="v">${G.g} line${G.g===1?'':'s'} · ${fmt(G.gutterPt)} pt</span> — room for exactly ${G.g===1?'one caption line':G.g+' caption lines'} between a picture and the field below, sitting on the same baselines as everything else.`
+        : `Your row gutter is currently <span class="v">0 lines</span>, so there is no room for a caption between fields — set it to 1 on the Grid tab and watch this page update.`;
+      return `
+<p>Captions are typography, not labels stuck on afterwards. This is why the book insists the <b>row gutter is measured in whole lines of text</b>: the gap between fields is itself part of the baseline grid, ready to carry a caption directly beneath a picture. ${gut}</p>
+<p>A longer caption takes the <b>top of the field below</b> (or beside) the picture instead${second?' — shown under the smaller picture on the right':''}. Keep captions flush with the picture’s left edge and set them at your smallest scale step (the Type scale tab computes it), and they read as quiet annotation rather than competing text.</p>`;
+    },
+    draw(G,g,ctx){
+      const cs = Math.min(2,G.cols), rs = Math.min(2,G.rows);
+      const R = fieldRect(G,0,0,cs,rs);
+      mockImage(g,R);
+      if(G.g>0 && rs<G.rows) mockCaption(g,G,R.x,R.y+R.h,R.w*0.75,Math.min(G.g,2));
+      if(G.cols>cs){
+        const R2 = fieldRect(G,G.cols-1,0,1,1);
+        mockImage(g,R2);
+        if(G.rows>1){
+          const R3 = fieldRect(G,G.cols-1,1,1,1);
+          mockCaption(g,G,R3.x,R3.y,R3.w*0.92,Math.min(3,G.moduleLines));
+        }
+      }
+      if(G.rows>rs) mockText(g,G,fieldRect(G,0,rs,1,G.rows-rs),9);
+    } },
+
+  { title:'Headlines hold position', kick:'Hierarchy',
+    body:G=>`
+<p>Headlines span <b>whole columns</b> — one, two, three, never two and a half — and they spend baselines like everything else. A headline from your type scale leads on a whole number of lines (the Type scale tab guarantees it), so however large it is, the text below still lands cleanly back on the grid.</p>
+<p>Hierarchy in the Swiss manner is positional as much as it is size: the book keeps title, body and captions in <b>the same fields, page after page</b>, so a reader learns where to look and stays oriented. Decide once where the headline zone lives — here, the top row — and where body text begins (the dashed line), then hold those positions through the whole document. Variation happens inside the system, not by moving the furniture.</p>`,
+    draw(G,g,ctx){
+      const hc = Math.min(2,G.cols);
+      const RH = fieldRect(G,0,0,hc,1);
+      const used = mockHead(g,G,RH,2);
+      if(G.moduleLines>used) mockCaption(g,G,RH.x,RH.y+used*G.b,RH.w*0.55,Math.min(2,G.moduleLines-used));
+      if(G.rows>1){
+        accentDash(g,G,fieldRect(G,0,1).y);
+        const sideImg = G.cols>2 && G.rows>2;
+        const tcols = Math.min(2, G.cols - (sideImg?1:0));
+        for(let c=0;c<tcols;c++) mockText(g,G,fieldRect(G,c,1,1,G.rows-1),c*7+3);
+        if(sideImg){
+          const irs = Math.min(2,G.rows-1);
+          const RI = fieldRect(G,G.cols-1,1,1,irs);
+          mockImage(g,RI);
+          if(G.g>0 && 1+irs<G.rows) mockCaption(g,G,RI.x,RI.y+RI.h,RI.w*0.6,1);
+        }
+      } else if(G.cols>hc){
+        for(let c=hc;c<G.cols;c++) mockText(g,G,fieldRect(G,c,0,1,1),c*5+1);
+      }
+    } },
+
+  { title:'Empty fields do work', kick:'White space',
+    body:G=>`
+<p>Nothing obliges you to fill every field. Empty fields are how a grid breathes: they make the occupied fields louder, steer the eye across the page, and create the off-centre tension Swiss design is known for. In many of the book’s finest examples more of the page is empty than printed.</p>
+<p>Two habits to borrow. First, place the strongest element <b>off-centre</b> and let it face into open space — symmetric centring is static; asymmetric balance is alive. Second, when a page feels crowded, remove content or add a page; don’t squeeze the grid to force a fit. White space here isn’t leftover — it is set deliberately, in whole fields, exactly like the content.</p>`,
+    draw(G,g,ctx){
+      const cs = Math.min(2,G.cols), rs = Math.min(2,G.rows);
+      const RI = fieldRect(G,G.cols-cs,0,cs,rs);
+      mockImage(g,RI);
+      if(G.g>0 && rs<G.rows) mockCaption(g,G,RI.x,RI.y+RI.h,RI.w*0.5,1);
+      let tspan = 0, trow = 0;
+      if(G.cols>cs){ tspan = Math.min(2,G.rows); trow = G.rows-tspan; }
+      else if(G.rows>rs){ tspan = Math.min(2,G.rows-rs); trow = G.rows-tspan; }
+      if(tspan>0) mockText(g,G,fieldRect(G,0,trow,1,tspan),11);
+    } },
+
+  { title:'One grid, many layouts', kick:'The payoff',
+    body:G=>`
+<p>The payoff of the system: <b>one grid, endless layouts</b> — all visibly one family. Every arrangement shown here obeys the few rules you’ve just walked through: pictures on whole fields, text in columns starting at field tops, captions on the gutter line, a headline spanning whole columns, and empty fields left on purpose.</p>
+<p>Press <b>Shuffle layout</b> a few times and watch how different the pages feel while remaining unmistakably related — that is what the book means by unity through the grid.</p>
+<p>When you’re ready to build one for real: the <b>Specification</b> tab on the Grid view lists every measurement of this exact grid, and <b>Apply in Affinity</b> walks you through recreating it, baseline and all.</p>`,
+    action:{ label:'Shuffle layout', fn(){ learn.layout = genLayout(learnGrid()); renderLearn(); } },
+    draw(G,g,ctx){
+      const Ly = learn.layout; if(!Ly) return;
+      Ly.heads.forEach(h=>mockHead(g,G,fieldRect(G,h.c,h.r,h.cs,h.rs),h.bars));
+      Ly.imgs.forEach(im=>mockImage(g,fieldRect(G,im.c,im.r,im.cs,im.rs)));
+      Ly.caps.forEach(cp=>{
+        const im = Ly.imgs[cp.img]; if(!im) return;
+        const R = fieldRect(G,im.c,im.r,im.cs,im.rs);
+        mockCaption(g,G,R.x,R.y+R.h,R.w*0.6,1);
+      });
+      Ly.texts.forEach(t=>mockText(g,G,fieldRect(G,t.c,t.r,t.cs,t.rs),(t.c+2)*(t.r+5)));
+    } },
+];
+
+function renderLearnCanvas(G,L){
+  const pad = 10;
+  const totalW = G.p.wpt + 2*pad, totalH = G.p.hpt + 2*pad;
+  const box = document.querySelector('#view-learn .previewbox');
+  const availW = Math.max(220, (box ? box.clientWidth : 660) - 40);
+  const maxH = Math.min(Math.round((window.innerHeight||800)*0.55), 520);
+  const scale = Math.min(availW/totalW, maxH/totalH);
+  const svg = svgEl('svg',{ class:'preview', xmlns:'http://www.w3.org/2000/svg', viewBox:`0 0 ${totalW} ${totalH}`,
+    width:Math.round(totalW*scale), height:Math.round(totalH*scale), role:'img', 'aria-label':'Layout lesson drawn on your grid' });
+  const g = svgEl('g',{transform:`translate(${pad} ${pad})`});
+  g.appendChild(svgEl('rect',{x:0,y:0,width:G.p.wpt,height:G.p.hpt,fill:'#fffefb',stroke:LEARN_INK,'stroke-width':1.3,'vector-effect':'non-scaling-stroke'}));
+  const period = G.moduleLines + G.g;
+  for(let k=0;k<=G.N;k++){
+    const y = G.topPt + k*G.b;
+    const m = (k%period===0 || k%period===G.moduleLines);
+    g.appendChild(svgEl('line',{x1:G.leftPt,y1:y,x2:G.leftPt+G.liveWpt,y2:y,
+      stroke:m?'rgba(25,24,15,.20)':'rgba(25,24,15,.09)','stroke-width':m?0.8:0.5,'vector-effect':'non-scaling-stroke'}));
+  }
+  for(let r=0;r<G.rows;r++) for(let c=0;c<G.cols;c++){
+    const R = fieldRect(G,c,r);
+    g.appendChild(svgEl('rect',{x:R.x,y:R.y,width:R.w,height:R.h,
+      fill:'rgba(214,57,43,.035)',stroke:'rgba(214,57,43,.30)','stroke-width':0.8,'vector-effect':'non-scaling-stroke'}));
+  }
+  const fs = Math.max(9, Math.min(18, G.p.wpt/40));
+  L.draw(G,g,{fs});
+  svg.appendChild(g);
+  const host = document.getElementById('learnhost');
+  host.innerHTML = ''; host.appendChild(svg);
+}
+
+function renderLearn(){
+  const G = learnGrid();
+  if(!learn.shape || learn.shape.c!==G.cols || learn.shape.r!==G.rows){
+    learn.shape = { c:G.cols, r:G.rows };
+    learn.blocks = seedBlocks(G);
+    learn.anchor = null;
+    learn.layout = genLayout(G);
+  }
+  const L = LESSONS[learn.idx];
+  document.querySelectorAll('#lessonnav button').forEach((b,i)=>b.classList.toggle('on',i===learn.idx));
+  const paperName = state.paper==='Custom' ? `${fmt(G.p.wmm)} × ${fmt(G.p.hmm)} mm` : `${state.paper} ${state.orientation}`;
+  document.getElementById('learnnote').innerHTML = G.__fallback
+    ? 'Your current settings don’t produce a valid grid, so the lessons draw on a default A5 grid for now. Fix the warnings on the <b>Grid</b> tab and the diagrams will switch to your own grid.'
+    : `The diagrams draw on <b>your current grid</b> — ${G.cols} × ${G.rows} fields on ${paperName}, ${fmt(G.b)} pt baseline. Change anything on the Grid tab and the lessons follow.`;
+  renderLearnCanvas(G,L);
+  document.getElementById('lessonkicker').textContent = `Lesson ${learn.idx+1} of ${LESSONS.length} · ${L.kick}`;
+  document.getElementById('lessontitle').textContent = L.title;
+  document.getElementById('lessonbody').innerHTML = L.body(G);
+  const act = document.getElementById('lessAct');
+  if(L.action){ act.hidden = false; act.textContent = L.action.label; act.onclick = L.action.fn; }
+  else { act.hidden = true; act.onclick = null; }
+  document.getElementById('lessPrev').disabled = learn.idx===0;
+  document.getElementById('lessNext').disabled = learn.idx===LESSONS.length-1;
+}
+
+(function(){
+  const nav = document.getElementById('lessonnav');
+  LESSONS.forEach((L,i)=>{
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.innerHTML = `<span class="n">${String(i+1).padStart(2,'0')}</span><span>${L.title}</span>`;
+    b.addEventListener('click',()=>{ learn.idx=i; renderLearn(); });
+    nav.appendChild(b);
+  });
+  document.getElementById('lessPrev').addEventListener('click',()=>{ if(learn.idx>0){ learn.idx--; renderLearn(); } });
+  document.getElementById('lessNext').addEventListener('click',()=>{ if(learn.idx<LESSONS.length-1){ learn.idx++; renderLearn(); } });
 })();

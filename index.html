@@ -25,6 +25,7 @@
   <nav class="topnav" id="topnav">
     <button data-view="grid" class="on">Grid</button>
     <button data-view="type">Type scale</button>
+    <button data-view="learn">Layout guide</button>
   </nav>
 
   <section id="view-grid">
@@ -305,6 +306,42 @@
             <ol class="steps" id="tsteps"></ol>
             <div class="copyrow"><button class="btn" id="tcopy">Copy text styles</button></div>
             <div class="foot" id="tfoot"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-learn" hidden>
+    <div class="layout">
+      <aside class="panel controls fade">
+        <div class="grp">
+          <h3>Lessons</h3>
+          <div class="lessonnav" id="lessonnav"></div>
+        </div>
+        <div class="grp">
+          <h3>Your grid</h3>
+          <p class="learnnote" id="learnnote"></p>
+        </div>
+        <div class="grp">
+          <h3>Source</h3>
+          <p class="learnnote">Principles drawn from Josef Müller-Brockmann, <i>Grid Systems in Graphic Design</i> (1981) — the book this studio is built on.</p>
+        </div>
+      </aside>
+      <div class="right">
+        <div class="panel fade" style="animation-delay:.05s">
+          <div class="previewbox"><div id="learnhost"></div></div>
+        </div>
+        <div class="panel fade" style="animation-delay:.1s">
+          <div class="tabpane lessonpane">
+            <div class="lesson-kicker" id="lessonkicker"></div>
+            <h2 id="lessontitle"></h2>
+            <div id="lessonbody" class="lessonbody"></div>
+            <div class="copyrow lessonactrow">
+              <button class="btn ghost" id="lessPrev">← Previous</button>
+              <button class="btn ghost" id="lessAct" hidden>Shuffle</button>
+              <button class="btn" id="lessNext">Next →</button>
+            </div>
           </div>
         </div>
       </div>
