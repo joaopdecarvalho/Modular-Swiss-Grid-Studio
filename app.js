@@ -364,6 +364,18 @@ const PRESETS = {
   f20:  { paper:'A4', orientation:'portrait', baseline:11, rows:5, cols:4, gutterLines:1, colGutterVal:1, colGutterUnit:'lines', square:false, linkLR:true, facing:false, topMarginMM:13, leftMarginMM:16, rightMarginMM:16, bleedMM:0, safeMM:0, mode:'traditional', _t:{ baseSize:8.5 } },
   f32:  { paper:'A4', orientation:'portrait', baseline:10, rows:8, cols:4, gutterLines:1, colGutterVal:1, colGutterUnit:'lines', square:false, linkLR:true, facing:false, topMarginMM:10, leftMarginMM:15, rightMarginMM:15, bleedMM:0, safeMM:0, mode:'traditional', _t:{ baseSize:8 } },
   flyer:{ paper:'A5', orientation:'portrait', baseline:15, rows:4, cols:3, gutterLines:1, colGutterVal:1, colGutterUnit:'lines', square:true,  linkLR:true, facing:false, topMarginMM:10.6, leftMarginMM:5.2, rightMarginMM:5.2, bleedMM:3, safeMM:3, mode:'traditional', _t:{ baseSize:10 } },
+  // A5 booklet page — 2-column text grid, facing pages with a wider inner (spine) margin so the measure clears the gutter
+  a5book:  { paper:'A5', orientation:'portrait',  baseline:12, rows:6, cols:2, gutterLines:1, colGutterVal:1, colGutterUnit:'lines', square:false, linkLR:false, facing:true,  topMarginMM:13, leftMarginMM:16, rightMarginMM:11, bleedMM:0, safeMM:0, mode:'traditional', _t:{ baseSize:9 } },
+  // A5 landscape card — 4×3 photo-led grid with print bleed and safe margins
+  a5card:  { paper:'A5', orientation:'landscape', baseline:12, rows:3, cols:4, gutterLines:1, colGutterVal:1, colGutterUnit:'lines', square:false, linkLR:true,  facing:false, topMarginMM:8,  leftMarginMM:8,  rightMarginMM:8,  bleedMM:3, safeMM:3, mode:'traditional', _t:{ baseSize:9 } },
+  // A5 poster — single wide column over a large baseline for headline-led type
+  a5poster:{ paper:'A5', orientation:'portrait',  baseline:18, rows:3, cols:1, gutterLines:1, colGutterVal:1, colGutterUnit:'lines', square:false, linkLR:true,  facing:false, topMarginMM:16, leftMarginMM:12, rightMarginMM:12, bleedMM:3, safeMM:3, mode:'traditional', _t:{ baseSize:12 } },
+  // A3 grid poster — 4×6 structured field grid for event / information posters
+  a3grid: { paper:'A3', orientation:'portrait', baseline:16, rows:6, cols:4, gutterLines:1, colGutterVal:1, colGutterUnit:'lines', square:false, linkLR:true, facing:false, topMarginMM:20, leftMarginMM:20, rightMarginMM:20, bleedMM:3, safeMM:5, mode:'traditional', _t:{ baseSize:11 } },
+  // A3 type poster — 2 wide columns over a large baseline for headline-led type
+  a3type: { paper:'A3', orientation:'portrait', baseline:24, rows:4, cols:2, gutterLines:1, colGutterVal:1, colGutterUnit:'lines', square:false, linkLR:true, facing:false, topMarginMM:24, leftMarginMM:22, rightMarginMM:22, bleedMM:3, safeMM:5, mode:'traditional', _t:{ baseSize:14 } },
+  // A3 image poster — 5×7 square-module grid for photo / exhibition posters
+  a3photo:{ paper:'A3', orientation:'portrait', baseline:14, rows:7, cols:5, gutterLines:1, colGutterVal:1, colGutterUnit:'lines', square:true,  linkLR:true, facing:false, topMarginMM:16, leftMarginMM:16, rightMarginMM:16, bleedMM:3, safeMM:5, mode:'traditional', _t:{ baseSize:10 } },
 };
 function applyPreset(key){
   const p = PRESETS[key]; if(!p) return;
@@ -684,7 +696,7 @@ document.getElementById('loadCfg').addEventListener('click',()=>{
 });
 const TIPS = {
   paper: '<b>Paper size.</b> The finished trim size. A6 = small handout, A5 = standard flyer, A4 = full sheet, DL = tall third-of-A4 that fits a #10 envelope. Set this first — every margin and field scales from it. Bigger pages fit more baseline lines and more fields.',
-  preset: '<b>Presets.</b> Starting points built on the three grids Müller-Brockmann works through in <i>Grid Systems in Graphic Design</i> — type-and-picture areas of 8, 20 and 32 fields — plus the A5 flyer square grid. Loading one fills in every setting; treat it as a base camp and adjust from there. 8 fields suits simple brochures, 20 is a flexible editorial workhorse, 32 handles image-dense catalogues.',
+  preset: '<b>Presets.</b> Starting points built on the three grids Müller-Brockmann works through in <i>Grid Systems in Graphic Design</i> — type-and-picture areas of 8, 20 and 32 fields — plus a set of A5 layouts: a square flyer, a 2-column booklet spread, a landscape photo card, and a single-column type poster — and three A3 posters: a structured 4×6 grid, a 2-column big-type layout, and a 5×7 image grid. Loading one fills in every setting; treat it as a base camp and adjust from there. 8 fields suits simple brochures, 20 is a flexible editorial workhorse, 32 handles image-dense catalogues.',
   orient: '<b>Orientation.</b> Portrait is taller than wide; landscape swaps the two. Portrait suits text- and headline-led flyers; landscape suits photo-led or on-screen layouts.',
   custom: '<b>Custom size.</b> Type any trim size in millimetres when your format is not a preset — a 210×210 square, a poster, a ticket. The grid math adapts to whatever you enter.',
   baseline: '<b>Baseline / leading.</b> The master unit of the system. In the book everything is measured in the typographic point system, and the type area is built as an <i>exact whole number of these lines</i> — that is what locks the rhythm. Rule of thumb: leading ≈ 1.2–1.5× the text size (10 pt text → about 13–15 pt). Set it to your real body leading and snap text to it.',
@@ -750,3 +762,35 @@ let __rz; window.addEventListener('resize',()=>{clearTimeout(__rz); __rz=setTime
   if(!document.getElementById('view-grid').hidden) render();
   if(!document.getElementById('view-type').hidden) renderType();
 },120);});
+
+// Give every plain number field a − / + stepper (replaces the native spin arrows).
+(function(){
+  const decimals = s => (String(s).split('.')[1]||'').length;
+  function bump(input, dir){
+    if(input.disabled) return;
+    const step = parseFloat(input.step) || 1;
+    const min = input.min!=='' ? parseFloat(input.min) : -Infinity;
+    const max = input.max!=='' ? parseFloat(input.max) :  Infinity;
+    const cur = parseFloat(input.value) || 0;
+    let next = cur + dir*step;
+    next = Math.min(max, Math.max(min, next));
+    input.value = parseFloat(next.toFixed(decimals(step)));
+    input.dispatchEvent(new Event('input',{bubbles:true}));
+    input.dispatchEvent(new Event('change',{bubbles:true}));
+  }
+  document.querySelectorAll('input[type=number]').forEach(input=>{
+    if(input.closest('.stepper')) return;            // cols/rows already have steppers
+    const wrap = document.createElement('div');
+    wrap.className = 'stepper';
+    const minus = document.createElement('button');
+    const plus  = document.createElement('button');
+    minus.type = plus.type = 'button';
+    minus.textContent = '−'; plus.textContent = '+';
+    minus.setAttribute('aria-label','Decrease'); plus.setAttribute('aria-label','Increase');
+    input.style.width = '';                          // drop inline widths for a uniform field
+    input.parentNode.insertBefore(wrap, input);
+    wrap.append(minus, input, plus);
+    minus.addEventListener('click',()=>bump(input,-1));
+    plus .addEventListener('click',()=>bump(input, 1));
+  });
+})();
