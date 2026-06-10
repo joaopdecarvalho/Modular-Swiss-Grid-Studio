@@ -837,14 +837,26 @@ function mockText(g,G,R,seed){
     g.appendChild(svgEl('rect',{x:R.x,y:R.y+k*G.b-G.b*.42,width:w,height:G.b*.42,fill:'rgba(25,24,15,.32)'}));
   }
 }
-function mockHead(g,G,R,bars){
-  const maxBars = Math.max(1, Math.floor(R.h/(2*G.b)));
+function mockTextStand(g,G,R,lines,seed){
+  // a block whose LAST baseline registers on R's bottom edge (a "stand line")
+  const rnd = mulberry(seed||5);
+  const n = Math.max(1, Math.min(lines, Math.round(R.h/G.b)));
+  const y0 = R.y + R.h - n*G.b;
+  for(let k=1;k<=n;k++){
+    const last = k===n || k%7===0;
+    const w = R.w*(last ? .4+.25*rnd() : .88+.12*rnd());
+    g.appendChild(svgEl('rect',{x:R.x,y:y0+k*G.b-G.b*.42,width:w,height:G.b*.42,fill:'rgba(25,24,15,.32)'}));
+  }
+}
+function mockHead(g,G,R,bars,barLines=2){
+  const maxBars = Math.max(1, Math.floor(R.h/(barLines*G.b)));
   const nb = Math.min(bars||2, maxBars);
+  const barH = G.b*barLines*.52;
   for(let i=1;i<=nb;i++){
     const w = R.w*(i===nb?.62:.9);
-    g.appendChild(svgEl('rect',{x:R.x,y:R.y+i*2*G.b-G.b*1.05,width:w,height:G.b*1.05,fill:LEARN_INK}));
+    g.appendChild(svgEl('rect',{x:R.x,y:R.y+i*barLines*G.b-barH,width:w,height:barH,fill:LEARN_INK}));
   }
-  return nb*2; // baselines consumed
+  return nb*barLines; // baselines consumed
 }
 function mockCaption(g,G,x,y,w,lines){
   const n = Math.max(1, lines||1);
@@ -908,8 +920,8 @@ function genLayout(G){
   const take = (c,r,cs,rs)=>{ for(let i=r;i<r+rs;i++) for(let j=c;j<c+cs;j++) occ[i][j]=true; };
   const rnd = n => Math.floor(Math.random()*n);
   const out = { cols:C, rows:R, heads:[], imgs:[], texts:[], caps:[] };
-  // headline zone: whole columns in the top row
-  const hc = Math.min(C, 1+rnd(Math.min(3,C)));
+  // headline zone: whole columns in the top row — sometimes the full type area, as on the book's cover
+  const hc = Math.random()<0.25 ? C : Math.min(C, 1+rnd(Math.min(3,C)));
   const hx = rnd(C-hc+1);
   out.heads.push({ c:hx, r:0, cs:hc, rs:1, bars:1+rnd(2) });
   take(hx,0,hc,1);
@@ -937,7 +949,7 @@ function genLayout(G){
     }
     if(best){
       const rs = Math.max(1, best.run - (Math.random()<0.4?1:0));
-      out.texts.push({ c:j, r:best.start, cs:1, rs });
+      out.texts.push({ c:j, r:best.start, cs:1, rs, stand:Math.random()<0.3 });
       take(j,best.start,1,rs);
     }
   }
@@ -968,19 +980,39 @@ const LESSONS = [
       const cpl = G.colWpt>0 ? Math.round(G.colWpt/(0.5*typeState.baseSize)) : 0;
       const verdict = cpl<40 ? 'on the short side — consider fewer columns' : cpl>78 ? 'on the long side — consider more columns or larger body text' : 'a comfortable measure';
       return `
-<p>Body text fills <b>the width of a column</b> and starts <b>at the top edge of a field</b> — never part-way down a module. Because your leading equals the baseline (<span class="v">${fmt(G.b)} pt</span>), one field holds exactly <span class="v">${G.moduleLines} lines</span> and a full column runs <span class="v">${G.N} lines</span>. Text may flow straight past field boundaries — the divisions matter where text meets pictures.</p>
-<p>The first baseline hangs one line below the field’s top edge (the red dot); the capitals of line one reach up toward the edge. Columns don’t all have to start at the same height — the second column here starts one field lower — but every start must be a <b>field edge</b> (the dashed line). Because field depth is a whole number of lines, the columns’ baselines still pair up exactly, line for line. That alignment is what makes multi-column pages look engineered rather than stacked.</p>
+<p>Body text fills <b>the width of a column</b> and registers to <b>a field edge</b> — never part-way down a module. Because your leading equals the baseline (<span class="v">${fmt(G.b)} pt</span>), one field holds exactly <span class="v">${G.moduleLines} lines</span> and a full column runs <span class="v">${G.N} lines</span>. Text may flow straight past field boundaries — the divisions matter where text meets pictures.</p>
+<p>A field offers <b>two registration edges</b>, and the book’s layouts use both. Text usually <b>hangs</b> from the top edge of a field — the capitals of line one reach up to it, and the first baseline sits one line down (upper red dot). But a block may just as well <b>stand</b> on a field’s bottom edge, its last baseline placed exactly on the edge (lower red dot) — captions, credits and the bottom-weighted blocks on the book’s own cover do this. Both are fully on the grid: a field’s depth is a whole number of lines, so a block lands on the baseline grid whichever edge it registers to.</p>
+<p>What the system never allows is a block that registers to <i>nothing</i> — floating mid-module with neither edge taking responsibility for it. Every start or end is a field edge (the dashed lines mark the page’s hang line and stand line), which is why columns hung and stood at different heights still pair their baselines exactly, line for line. Mixing the two is one of the book’s quiet tools for vertical tension.</p>
 <p><b>Measure check:</b> at your <span class="v">${fmt(typeState.baseSize)} pt</span> body size this column carries about <span class="v">${cpl} characters</span> per line — ${verdict}. The book’s test is comfort: a line you can read at arm’s length, roughly seven to ten words.</p>`;
     },
     draw(G,g,ctx){
-      const R0 = fieldRect(G,0,0,1,G.rows);
-      mockText(g,G,R0,3);
-      g.appendChild(svgEl('circle',{cx:R0.x-Math.max(4,ctx.fs*.4),cy:R0.y+G.b,r:ctx.fs*.26,fill:LEARN_ACC}));
-      if(G.cols>1){
-        const sr = Math.min(1,G.rows-1);
-        const R1 = fieldRect(G,1,sr,1,G.rows-sr);
-        accentDash(g,G,R1.y);
-        mockText(g,G,R1,5);
+      const dot = (x,y)=>g.appendChild(svgEl('circle',{cx:x,cy:y,r:Math.max(2.2,ctx.fs*.26),fill:LEARN_ACC}));
+      const dotOff = Math.max(4,ctx.fs*.4);
+      const bottomY = G.topPt + G.liveHpt;
+      accentDash(g,G,G.topPt);   // hang line
+      accentDash(g,G,bottomY);   // stand line
+      if(G.cols===1){
+        const hr = Math.max(1,G.rows-1);
+        const R0 = fieldRect(G,0,0,1,hr);
+        mockText(g,G,R0,3);
+        dot(R0.x-dotOff, R0.y+G.b);
+        if(G.rows>1){
+          const RL = fieldRect(G,0,G.rows-1);
+          mockTextStand(g,G,RL,Math.max(2,Math.round(G.moduleLines*.6)),5);
+          dot(RL.x-dotOff, bottomY);
+        }
+      } else {
+        const R0 = fieldRect(G,0,0,1,G.rows);
+        mockText(g,G,R0,3);
+        dot(R0.x-dotOff, R0.y+G.b);
+        if(G.cols>2 && G.rows>1){
+          const R1 = fieldRect(G,1,1,1,Math.max(1,G.rows-2)); // hung from a lower field edge
+          accentDash(g,G,R1.y);
+          mockText(g,G,R1,5);
+        }
+        const RL = fieldRect(G,G.cols-1,0,1,G.rows);
+        mockTextStand(g,G,RL,Math.max(2,Math.round((RL.h/G.b)*.45)),8);
+        dot(RL.x-dotOff, bottomY);
       }
     } },
 
@@ -1039,13 +1071,13 @@ const LESSONS = [
 
   { title:'Headlines hold position', kick:'Hierarchy',
     body:G=>`
-<p>Headlines span <b>whole columns</b> — one, two, three, never two and a half — and they spend baselines like everything else. A headline from your type scale leads on a whole number of lines (the Type scale tab guarantees it), so however large it is, the text below still lands cleanly back on the grid.</p>
-<p>Hierarchy in the Swiss manner is positional as much as it is size: the book keeps title, body and captions in <b>the same fields, page after page</b>, so a reader learns where to look and stays oriented. Decide once where the headline zone lives — here, the top row — and where body text begins (the dashed line), then hold those positions through the whole document. Variation happens inside the system, not by moving the furniture.</p>`,
+<p>Headlines answer to the <b>type area</b>, not to a single column. The column division exists to give body matter its measure; display type works in coarser units of the same grid — two columns, three, or, as here, the full width of the type area, gutters included. Never a column and a half, though: the span is a whole number of columns, the left edge sits on a column edge, and the leading is a whole number of baselines (the Type scale tab guarantees it), so the text below lands cleanly back on the grid. The finer the matter, the tighter the rules — body text is the most constrained, display type the least.</p>
+<p>Hierarchy in the Swiss manner is positional as much as it is size: the book keeps title, body and captions in <b>the same fields, page after page</b>, so a reader learns where to look and stays oriented. Decide once where the headline zone lives — here, the top row — and where body text begins (the dashed line), then hold those positions through the whole document. And when a cover or a poster takes a visible liberty — a title bursting past the column logic — it reads as intentional precisely because everything else on the page obeys.</p>`,
     draw(G,g,ctx){
-      const hc = Math.min(2,G.cols);
-      const RH = fieldRect(G,0,0,hc,1);
-      const used = mockHead(g,G,RH,2);
-      if(G.moduleLines>used) mockCaption(g,G,RH.x,RH.y+used*G.b,RH.w*0.55,Math.min(2,G.moduleLines-used));
+      const RH = fieldRect(G,0,0,G.cols,1);
+      const barLines = G.moduleLines>=6 ? 3 : 2; // display type leads on more lines
+      const used = mockHead(g,G,RH,2,barLines);
+      if(G.moduleLines>used) mockCaption(g,G,RH.x,RH.y+used*G.b,Math.min(G.colWpt,RH.w*.6),Math.min(2,G.moduleLines-used));
       if(G.rows>1){
         accentDash(g,G,fieldRect(G,0,1).y);
         const sideImg = G.cols>2 && G.rows>2;
@@ -1057,8 +1089,6 @@ const LESSONS = [
           mockImage(g,RI);
           if(G.g>0 && 1+irs<G.rows) mockCaption(g,G,RI.x,RI.y+RI.h,RI.w*0.6,1);
         }
-      } else if(G.cols>hc){
-        for(let c=hc;c<G.cols;c++) mockText(g,G,fieldRect(G,c,0,1,1),c*5+1);
       }
     } },
 
@@ -1079,7 +1109,7 @@ const LESSONS = [
 
   { title:'One grid, many layouts', kick:'The payoff',
     body:G=>`
-<p>The payoff of the system: <b>one grid, endless layouts</b> — all visibly one family. Every arrangement shown here obeys the few rules you’ve just walked through: pictures on whole fields, text in columns starting at field tops, captions on the gutter line, a headline spanning whole columns, and empty fields left on purpose.</p>
+<p>The payoff of the system: <b>one grid, endless layouts</b> — all visibly one family. Every arrangement shown here obeys the few rules you’ve just walked through: pictures on whole fields, text registered to field edges (hung from a top, or standing on a bottom), captions on the gutter line, a headline spanning whole columns — sometimes the full type area — and empty fields left on purpose.</p>
 <p>Press <b>Shuffle layout</b> a few times and watch how different the pages feel while remaining unmistakably related — that is what the book means by unity through the grid.</p>
 <p>When you’re ready to build one for real: the <b>Specification</b> tab on the Grid view lists every measurement of this exact grid, and <b>Apply in Affinity</b> walks you through recreating it, baseline and all.</p>`,
     action:{ label:'Shuffle layout', fn(){ learn.layout = genLayout(learnGrid()); renderLearn(); } },
@@ -1092,7 +1122,11 @@ const LESSONS = [
         const R = fieldRect(G,im.c,im.r,im.cs,im.rs);
         mockCaption(g,G,R.x,R.y+R.h,R.w*0.6,1);
       });
-      Ly.texts.forEach(t=>mockText(g,G,fieldRect(G,t.c,t.r,t.cs,t.rs),(t.c+2)*(t.r+5)));
+      Ly.texts.forEach(t=>{
+        const R = fieldRect(G,t.c,t.r,t.cs,t.rs);
+        if(t.stand) mockTextStand(g,G,R,Math.max(2,Math.round((R.h/G.b)*.55)),(t.c+2)*(t.r+5));
+        else mockText(g,G,R,(t.c+2)*(t.r+5));
+      });
     } },
 ];
 
