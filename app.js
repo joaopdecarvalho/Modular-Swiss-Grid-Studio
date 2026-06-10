@@ -848,6 +848,19 @@ function mockTextStand(g,G,R,lines,seed){
     g.appendChild(svgEl('rect',{x:R.x,y:y0+k*G.b-G.b*.42,width:w,height:G.b*.42,fill:'rgba(25,24,15,.32)'}));
   }
 }
+function mockTextSized(g,G,R,leadLines,maxLines,seed){
+  // mid-size text (taller bars), hung from R's top: first baseline one grid
+  // line down, then spaced leadLines baselines apart (1.5 = floating interiors)
+  const rnd = mulberry(seed||7);
+  const lead = leadLines*G.b;
+  const n = Math.max(1, Math.min(maxLines, Math.floor((R.h - G.b)/lead) + 1));
+  for(let k=1;k<=n;k++){
+    const y = R.y + G.b + (k-1)*lead;
+    const w = R.w*(k===n ? .55+.2*rnd() : .8+.2*rnd());
+    g.appendChild(svgEl('rect',{x:R.x,y:y-G.b*.62,width:w,height:G.b*.62,fill:'rgba(25,24,15,.5)'}));
+  }
+  return n;
+}
 function mockHead(g,G,R,bars,barLines=2){
   const maxBars = Math.max(1, Math.floor(R.h/(barLines*G.b)));
   const nb = Math.min(bars||2, maxBars);
@@ -1089,6 +1102,93 @@ const LESSONS = [
           mockImage(g,RI);
           if(G.g>0 && 1+irs<G.rows) mockCaption(g,G,RI.x,RI.y+RI.h,RI.w*0.6,1);
         }
+      }
+    } },
+
+  { title:'Sizes between the lines', kick:'Type rhythm',
+    body:G=>{
+      const s1 = Math.round(typeState.baseSize*currentRatio()*2)/2; // first step above body
+      const pc = lead => Math.round(lead*G.b/s1*100);
+      const pBody = Math.round(G.b/typeState.baseSize*100);
+      const natural = Math.round(s1*(G.b/typeState.baseSize)*2)/2; // body's ratio applied to s1
+      const tightNote = pc(1)<105
+        ? 'at your sizes a single line barely clears the type — genuinely too tight'
+        : `it only feels cramped next to an airy body — the pinch is the contrast in densities (${pc(1)}% against the body’s ${pBody}%), not the number itself`;
+      return `
+<p>The grid’s one hard rule for type is that leading is counted in <b>whole baselines</b> — and the sizes just above body put that rule under stress. Your body text sits happily on one line (<span class="v">${fmt(typeState.baseSize)} / ${fmt(G.b)} pt</span> = ${pBody}%); a headline happily takes two or three. But the first step up on your scale — <span class="v">${fmt(s1)} pt</span> — is too big for one line and nowhere near needing two. Subheads, pull quotes and contact blocks all live in this gap. Three honest ways out:</p>
+<ol class="keylist">
+<li><b>Take one line</b> — <span class="v">${fmt(s1)} / ${fmt(G.b)} pt</span> (${pc(1)}%). Every line stays on the grid, and ${tightNote}.</li>
+<li><b>Take two lines</b> — <span class="v">${fmt(s1)} / ${fmt(2*G.b)} pt</span> (${pc(2)}%). Fully orthodox and airy. Too loose for running prose, exactly right for standalone items — contact lines, credits, lists — where each line is its own small block. (The Type scale tab prescribes this when you raise <b>Min leading</b> to ~1.3.)</li>
+<li><b>Register the edges, float the lines</b> — give the block a leading that suits it (the body’s ratio suggests ≈ <span class="v">${fmt(natural)} pt</span>; drawn here at 1½ lines = <span class="v">${fmt(1.5*G.b)} pt</span>, where every other line re-finds the grid) and snap only its <b>first baseline</b> to a grid line: the hang line from lesson 2, applied to a whole block. Interior lines float between grid lines; the registered edge (red dot) holds the block in the system. In Affinity: untick <i>Align to baseline grid</i> for that one style and set a fixed Leading Override.</li>
+</ol>
+<p>And a fourth, document-wide move: run the baseline grid at <b>half</b> the body leading (<span class="v">${fmt(G.b/2)} pt</span>). Body then takes two units, the in-between size three (<span class="v">${fmt(1.5*G.b)} pt</span>), and everything snaps natively again — at the price of a finer grid. Worth it when the middle size recurs through a whole document; overkill for a single flyer.</p>`;
+    },
+    draw(G,g,ctx){
+      const slots = [];
+      if(G.cols>=3){ [1,2,1.5].forEach((lead,i)=>slots.push({lead, c:i, r:0, rs:Math.min(2,G.rows)})); }
+      else if(G.cols===2){
+        slots.push({lead:1, c:0, r:0, rs:1});
+        slots.push({lead:2, c:1, r:0, rs:Math.min(2,G.rows)});
+        if(G.rows>=2) slots.push({lead:1.5, c:0, r:G.rows-1, rs:1});
+      } else {
+        slots.push({lead:1, c:0, r:0, rs:1});
+        if(G.rows>=2) slots.push({lead:2, c:0, r:1, rs:1});
+        if(G.rows>=3) slots.push({lead:1.5, c:0, r:2, rs:1});
+      }
+      slots.forEach((s,i)=>{
+        const R = fieldRect(G,s.c,s.r,1,s.rs);
+        mockTextSized(g,G,R,s.lead,4,4+i*3);
+        lessonMarker(g, R.x+ctx.fs*.85, Math.max(ctx.fs*.9, R.y-ctx.fs*1.15), i+1, ctx.fs);
+        if(s.lead===1.5) g.appendChild(svgEl('circle',{cx:R.x-Math.max(4,ctx.fs*.4), cy:R.y+G.b, r:Math.max(2.2,ctx.fs*.26), fill:LEARN_ACC}));
+      });
+    } },
+
+  { title:'Derive the space between', kick:'Repetition',
+    body:G=>{
+      const sep = G.moduleLines-3+G.g;
+      const liveA = G.moduleLines>=3
+        ? `On your grid: a 3-line unit in each <span class="v">${G.moduleLines}-line</span> module leaves <span class="v">${sep} line${sep===1?'':'s'}</span> between units — equal without measuring.`
+        : `(Your modules are only ${G.moduleLines} lines deep — too shallow for a 3-line unit, so on this grid the period method is the one to use.)`;
+      return `
+<p>Pages constantly stack repeated units — a heading with two lines of text, list entries, contact rows. “How much space between them?” is the wrong question: gaps set by eye come out slightly unequal, and the page feels restless without telling you why. In the system the space between blocks is <b>derived, not picked</b> — and it is always a whole number of baselines.</p>
+<ol class="keylist">
+<li><b>One unit per field</b> — hang each unit from consecutive field tops (lesson 2’s hang line). The separation is then the leftover depth of the module plus the gutter: identical by construction, and the units share their edges with everything else on the page. ${liveA}</li>
+<li><b>A fixed period</b> — when the fields don’t cooperate, give every unit the same period in whole lines, ignoring field boundaries: drawn here as a unit every <span class="v">5th line</span> — 3 of content, 2 of air. To fit a run, count the lines available, subtract the content, and split the remainder into equal gaps; anything left over goes to the edges of the run, never into unequal gaps.</li>
+<li><b>The proximity check</b> — the one taste rule: a heading must sit closer to its own text than to the block above it, roughly twice as close (the two red brackets). If the gaps tie, the heading floats free; if they invert, it captions the wrong block.</li>
+</ol>
+<p>In Affinity the robust mechanic is one flowing text frame, with the heading style’s <i>Space Before</i> set in whole-baseline points (<span class="v">${fmt(2*G.b)} pt</span> = two blank lines on your grid) — with <i>Align to baseline grid</i> on, the spacing quantizes itself and survives every edit. Separate frames work too: snap each frame’s top to a field edge and let the grid do the counting.</p>`;
+    },
+    draw(G,g,ctx){
+      const unit = (x,w,yEdge,seed)=>{
+        const rnd = mulberry(seed);
+        g.appendChild(svgEl('rect',{x,y:yEdge+G.b-G.b*.62,width:w*.72,height:G.b*.62,fill:'rgba(25,24,15,.55)'}));
+        g.appendChild(svgEl('rect',{x,y:yEdge+2*G.b-G.b*.42,width:w*(.86+.1*rnd()),height:G.b*.42,fill:'rgba(25,24,15,.32)'}));
+        g.appendChild(svgEl('rect',{x,y:yEdge+3*G.b-G.b*.42,width:w*(.5+.25*rnd()),height:G.b*.42,fill:'rgba(25,24,15,.32)'}));
+      };
+      const bracket = (x,y1,y2)=>{
+        g.appendChild(svgEl('line',{x1:x,y1:y1,x2:x,y2:y2,stroke:LEARN_ACC,'stroke-width':1.2,'vector-effect':'non-scaling-stroke'}));
+        [y1,y2].forEach(yy=>g.appendChild(svgEl('line',{x1:x-2.5,y1:yy,x2:x+2.5,y2:yy,stroke:LEARN_ACC,'stroke-width':1.2,'vector-effect':'non-scaling-stroke'})));
+      };
+      // 1 — one unit hung from each field top (column 0)
+      const RA = fieldRect(G,0,0);
+      const nA = Math.min(4,G.rows);
+      for(let r=0;r<nA;r++) unit(RA.x,RA.w,fieldRect(G,0,r).y,11+r);
+      lessonMarker(g, RA.x+ctx.fs*.85, Math.max(ctx.fs*.9, RA.y-ctx.fs*1.15), 1, ctx.fs);
+      // 2 — fixed 5-line period, ignoring field boundaries (last column)
+      if(G.cols>1){
+        const RB = fieldRect(G,G.cols-1,0,1,G.rows);
+        const P = 5;
+        const nB = Math.min(4, Math.max(1, Math.floor((G.N-3)/P)+1));
+        for(let u=0;u<nB;u++) unit(RB.x,RB.w,RB.y+u*P*G.b,21+u);
+        lessonMarker(g, RB.x+ctx.fs*.85, Math.max(ctx.fs*.9, RB.y-ctx.fs*1.15), 2, ctx.fs);
+      }
+      // 3 — proximity: tight bracket (heading to its text) vs loose bracket (unit to next heading)
+      if(G.rows>1){
+        const t0 = fieldRect(G,0,0).y, t1 = fieldRect(G,0,1).y;
+        const bx = RA.x - Math.max(4,ctx.fs*.45);
+        bracket(bx, t0+G.b, t0+2*G.b);
+        bracket(bx, t0+3*G.b, t1+G.b);
+        lessonMarker(g, RA.x+RA.w*.82, (t0+3*G.b+t1+G.b)/2, 3, ctx.fs);
       }
     } },
 
