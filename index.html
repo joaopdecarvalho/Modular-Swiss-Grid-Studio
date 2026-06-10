@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Modular Grid Studio — after Müller-Brockmann</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="fade">
+    <div>
+      <h1>Modular Grid Studio</h1>
+      <div class="sub">A baseline-driven grid after Josef Müller-Brockmann</div>
+    </div>
+    <div class="modeswitch" id="modeswitch">
+      <button data-mode="traditional" class="on">Traditional</button>
+      <button data-mode="comfortable">Comfortable</button>
+    </div>
+  </header>
+
+  <nav class="topnav" id="topnav">
+    <button data-view="grid" class="on">Grid</button>
+    <button data-view="type">Type scale</button>
+  </nav>
+
+  <section id="view-grid">
+  <div class="layout">
+    <!-- CONTROLS -->
+    <aside class="panel controls fade" style="animation-delay:.05s">
+      <div class="grp">
+        <h3>Presets</h3>
+        <div class="row">
+          <label class="lbl">Load a grid <span class="info" data-tip="preset" tabindex="0" role="button" aria-label="About presets">?</span></label>
+          <select id="preset">
+            <option value="">Choose…</option>
+            <option value="f8">8 fields · 2×4 (A4)</option>
+            <option value="f20">20 fields · 4×5 (A4)</option>
+            <option value="f32">32 fields · 4×8 (A4)</option>
+            <option value="flyer">A5 flyer · 3×4 square</option>
+          </select>
+        </div>
+      </div>
+      <div class="grp">
+        <h3>Document</h3>
+        <div class="row">
+          <label class="lbl">Paper size <span class="info" data-tip="paper" tabindex="0" role="button" aria-label="About paper size">?</span></label>
+          <select id="paper">
+            <option>A6</option><option selected>A5</option><option>A4</option><option>A3</option>
+            <option>DL</option><option>Letter</option><option value="Custom">Custom…</option>
+          </select>
+        </div>
+        <div class="row">
+          <label class="lbl">Orientation <span class="info" data-tip="orient" tabindex="0" role="button" aria-label="About orientation">?</span></label>
+          <div class="seg" id="orient">
+            <button data-o="portrait" class="on">Portrait</button>
+            <button data-o="landscape">Landscape</button>
+          </div>
+        </div>
+        <div class="row" id="customRow" hidden>
+          <label class="lbl">Custom <span class="info" data-tip="custom" tabindex="0" role="button" aria-label="About custom size">?</span> <small>width × height, mm</small></label>
+          <div style="display:flex;gap:6px">
+            <input type="number" id="cw" value="148" min="10" step="1" style="width:58px">
+            <input type="number" id="ch" value="210" min="10" step="1" style="width:58px">
+          </div>
+        </div>
+      </div>
+
+      <div class="grp">
+        <h3>Type rhythm</h3>
+        <div class="row">
+          <label class="lbl">Baseline / leading <span class="info" data-tip="baseline" tabindex="0" role="button" aria-label="About baseline">?</span> <small>the master unit (pt)</small></label>
+          <input type="number" id="baseline" value="15" min="6" max="60" step="0.5">
+        </div>
+      </div>
+
+      <div class="grp">
+        <h3>Grid fields</h3>
+        <div class="row">
+          <label class="lbl">Columns <span class="info" data-tip="cols" tabindex="0" role="button" aria-label="About columns">?</span></label>
+          <div class="stepper"><button data-step="cols" data-d="-1">−</button>
+            <input type="number" id="cols" value="3" min="1" max="16"><button data-step="cols" data-d="1">+</button></div>
+        </div>
+        <div class="row">
+          <label class="lbl">Rows <span class="info" data-tip="rows" tabindex="0" role="button" aria-label="About rows">?</span></label>
+          <div class="stepper"><button data-step="rows" data-d="-1">−</button>
+            <input type="number" id="rows" value="4" min="1" max="16"><button data-step="rows" data-d="1">+</button></div>
+        </div>
+        <div class="row">
+          <label class="lbl">Row gutter <span class="info" data-tip="gutter" tabindex="0" role="button" aria-label="About row gutter">?</span> <small>in baseline lines</small></label>
+          <input type="number" id="gutter" value="1" min="0" max="6" step="1">
+        </div>
+        <div class="row">
+          <label class="lbl">Column gutter <span class="info" data-tip="cgutter" tabindex="0" role="button" aria-label="About column gutter">?</span> <small id="cgUnitLbl">in baseline lines</small></label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input type="number" id="cgutter" value="1" min="0" step="0.5" style="width:54px">
+            <select id="cgUnit" style="width:66px">
+              <option value="lines" selected>lines</option>
+              <option value="mm">mm</option>
+              <option value="pt">pt</option>
+            </select>
+          </div>
+        </div>
+        <label class="check"><input type="checkbox" id="square" checked> Square modules <span class="info" data-tip="square" tabindex="0" role="button" aria-label="About square modules">?</span></label>
+      </div>
+
+      <div class="grp">
+        <h3>Margins &amp; bleed</h3>
+        <div class="row">
+          <label class="lbl">Units <span class="info" data-tip="munit" tabindex="0" role="button" aria-label="About margin units">?</span></label>
+          <div class="seg" id="munit">
+            <button data-u="mm" class="on">mm</button>
+            <button data-u="pt">pt</button>
+          </div>
+        </div>
+        <div class="row">
+          <label class="lbl">Top margin <span class="info" data-tip="topm" tabindex="0" role="button" aria-label="About top margin">?</span> <small id="topUnit">baseline start (mm)</small></label>
+          <input type="number" id="topm" value="10.6" min="0" step="0.5">
+        </div>
+        <label class="check"><input type="checkbox" id="linkLR" checked> Link L/R margins <span class="info" data-tip="linkLR" tabindex="0" role="button" aria-label="About linked margins">?</span></label>
+        <label class="check"><input type="checkbox" id="facing"> Facing pages (spread) <span class="info" data-tip="facing" tabindex="0" role="button" aria-label="About facing pages">?</span></label>
+        <div class="row">
+          <label class="lbl"><span id="leftLbl">Left</span> margin <span class="info" data-tip="leftm" tabindex="0" role="button" aria-label="About left margin">?</span> <small id="leftUnit">mm</small></label>
+          <input type="number" id="leftm" value="5.2" min="0" step="0.5" disabled>
+        </div>
+        <div class="row">
+          <label class="lbl"><span id="rightLbl">Right</span> margin <span class="info" data-tip="rightm" tabindex="0" role="button" aria-label="About right margin">?</span> <small id="rightUnit">mm</small></label>
+          <input type="number" id="rightm" value="5.2" min="0" step="0.5" disabled>
+        </div>
+        <div class="row">
+          <label class="lbl">Bleed <span class="info" data-tip="bleed" tabindex="0" role="button" aria-label="About bleed">?</span> <small>mm, per edge</small></label>
+          <input type="number" id="bleed" value="0" min="0" max="10" step="0.5">
+        </div>
+        <div class="row">
+          <label class="lbl">Safe zone <span class="info" data-tip="safe" tabindex="0" role="button" aria-label="About safe zone">?</span> <small>mm, inset</small></label>
+          <input type="number" id="safe" value="0" min="0" max="15" step="0.5">
+        </div>
+        <div class="row">
+          <label class="lbl">Proportion <span class="info" data-tip="prop" tabindex="0" role="button" aria-label="About margin proportions">?</span></label>
+          <select id="propScheme">
+            <option value="equal">Equal (1:1:1:1)</option>
+            <option value="classic" selected>Classic foot (top:bot 2:3)</option>
+            <option value="golden">Golden (1:1.618)</option>
+            <option value="spread">Spread (wide outer)</option>
+          </select>
+        </div>
+        <button class="btn ghost" id="applyProp">Apply margin proportion</button>
+        <button class="btn ghost" id="reset">Reset to method default</button>
+      </div>
+    </aside>
+
+    <!-- RIGHT -->
+    <div class="right">
+      <div class="panel fade" style="animation-delay:.1s">
+        <div class="previewbox"><div id="svghost"></div></div>
+        <div class="legend">
+          <label><input type="checkbox" id="lyBase" checked><span class="swatch" style="background:var(--line-2)"></span>Baseline grid</label>
+          <label><input type="checkbox" id="lyMod" checked><span class="swatch" style="background:var(--accent-soft);border:1px solid var(--accent-line)"></span>Module fields</label>
+          <label><input type="checkbox" id="lyBleed" checked><span class="swatch" style="background:transparent;border:1px dashed var(--accent-line)"></span>Bleed &amp; safe</label>
+        </div>
+      </div>
+
+      <div class="panel fade" style="animation-delay:.15s">
+        <div id="status"></div>
+        <div class="tabs" id="tabs">
+          <button data-tab="spec" class="on">Specification</button>
+          <button data-tab="affinity">Apply in Affinity</button>
+          <button data-tab="export">Save / export</button>
+        </div>
+        <div class="tabpane" data-pane="spec">
+          <table class="spec" id="spec"></table>
+        </div>
+        <div class="tabpane" data-pane="affinity" hidden>
+          <ol class="steps" id="steps"></ol>
+          <div class="copyrow">
+            <button class="btn" id="copy">Copy all steps</button>
+          </div>
+          <div class="foot" id="foot"></div>
+        </div>
+        <div class="tabpane" data-pane="export" hidden>
+          <p class="exhint">Download the grid as an image, or copy a setup code that restores every setting (it is also saved automatically and kept in the page address).</p>
+          <div class="copyrow">
+            <button class="btn" id="dlPng">Download PNG</button>
+            <button class="btn ghost" id="dlSvg">Download SVG</button>
+          </div>
+          <div class="copyrow">
+            <button class="btn ghost" id="copyCfg">Copy setup code</button>
+          </div>
+          <div class="exrow">
+            <input type="text" id="cfgIn" placeholder="Paste a setup code…">
+            <button class="btn ghost" id="loadCfg">Load</button>
+          </div>
+          <div class="foot" id="exfoot"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </section>
+
+  <section id="view-type" hidden>
+    <div class="layout">
+      <aside class="panel controls fade">
+        <div class="grp">
+          <h3>Scale</h3>
+          <div class="row">
+            <label class="lbl">Base size <span class="info" data-tip="tbase" tabindex="0" role="button" aria-label="About base size">?</span> <small>body text (pt)</small></label>
+            <input type="number" id="tbase" value="10" min="5" max="48" step="0.5">
+          </div>
+          <div class="row">
+            <label class="lbl">Ratio <span class="info" data-tip="tratio" tabindex="0" role="button" aria-label="About ratio">?</span></label>
+            <select id="tratio">
+              <option value="1.067">Minor second · 1.067</option>
+              <option value="1.125">Major second · 1.125</option>
+              <option value="1.2" selected>Minor third · 1.2</option>
+              <option value="1.25">Major third · 1.25</option>
+              <option value="1.333">Perfect fourth · 1.333</option>
+              <option value="1.414">Aug. fourth · 1.414</option>
+              <option value="1.5">Perfect fifth · 1.5</option>
+              <option value="1.618">Golden · 1.618</option>
+              <option value="custom">Custom…</option>
+            </select>
+          </div>
+          <div class="row" id="tratioCustomRow" hidden>
+            <label class="lbl">Custom ratio</label>
+            <input type="number" id="tratioCustom" value="1.25" min="1.01" max="2.5" step="0.001">
+          </div>
+          <div class="row">
+            <label class="lbl">Steps up <span class="info" data-tip="tup" tabindex="0" role="button" aria-label="About steps up">?</span> <small>headings</small></label>
+            <input type="number" id="tup" value="5" min="0" max="9" step="1">
+          </div>
+          <div class="row">
+            <label class="lbl">Steps down <span class="info" data-tip="tdown" tabindex="0" role="button" aria-label="About steps down">?</span> <small>captions</small></label>
+            <input type="number" id="tdown" value="1" min="0" max="4" step="1">
+          </div>
+        </div>
+        <div class="grp">
+          <h3>Typeface</h3>
+          <div class="row">
+            <label class="lbl">Font <span class="info" data-tip="tfont" tabindex="0" role="button" aria-label="About font">?</span></label>
+            <select id="tfont">
+              <option value="Archivo" selected>Archivo</option>
+              <option value="DM Sans">DM Sans</option>
+              <option value="Hanken Grotesk">Hanken Grotesk</option>
+              <option value="Space Grotesk">Space Grotesk</option>
+              <option value="Inter Tight">Inter Tight</option>
+              <option value="IBM Plex Sans">IBM Plex Sans</option>
+              <option value="Work Sans">Work Sans</option>
+              <option value="Libre Franklin">Libre Franklin</option>
+              <option value="Fraunces">Fraunces (serif)</option>
+              <option value="Newsreader">Newsreader (serif)</option>
+              <option value="Spline Sans Mono">Spline Sans Mono</option>
+              <option value="system">System UI</option>
+              <option value="custom">Custom…</option>
+            </select>
+          </div>
+          <div class="row" id="tfontCustomRow" hidden>
+            <label class="lbl">Font name</label>
+            <input type="text" id="tfontCustom" placeholder="Helvetica Neue" style="width:128px;font-family:var(--sans);text-align:left">
+          </div>
+          <div class="row">
+            <label class="lbl">Weight <span class="info" data-tip="tweight" tabindex="0" role="button" aria-label="About weight">?</span></label>
+            <select id="tweight">
+              <option value="400">Regular</option>
+              <option value="500" selected>Medium</option>
+              <option value="700">Bold</option>
+            </select>
+          </div>
+        </div>
+        <div class="grp">
+          <h3>Baseline fit</h3>
+          <div class="row">
+            <label class="lbl">Baseline <span class="info" data-tip="tbaseline" tabindex="0" role="button" aria-label="About baseline">?</span> <small>shared with grid (pt)</small></label>
+            <input type="number" id="tbaseline" value="15" min="6" max="60" step="0.5">
+          </div>
+          <div class="row">
+            <label class="lbl">Min leading <span class="info" data-tip="tminlh" tabindex="0" role="button" aria-label="About min leading">?</span> <small>× font size</small></label>
+            <input type="number" id="tminlh" value="1" min="1" max="2" step="0.05">
+          </div>
+        </div>
+      </aside>
+
+      <div class="right">
+        <div class="panel fade">
+          <div class="scaleprev" id="scaleprev"></div>
+        </div>
+        <div class="panel fade">
+          <div id="tstatus"></div>
+          <div class="tabs" id="ttabs">
+            <button data-ttab="table" class="on">Scale table</button>
+            <button data-ttab="taffinity">Text styles in Affinity</button>
+          </div>
+          <div class="tabpane" data-tpane="table">
+            <table class="spec" id="tspec"></table>
+          </div>
+          <div class="tabpane" data-tpane="taffinity" hidden>
+            <ol class="steps" id="tsteps"></ol>
+            <div class="copyrow"><button class="btn" id="tcopy">Copy text styles</button></div>
+            <div class="foot" id="tfoot"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
